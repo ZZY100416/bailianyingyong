@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JWT调试测试</title>
+</head>
+<body>
+    <h1>JWT调试测试</h1>
+    <p>这个测试会详细调试JWT token的验证过程</p>
+    
+    <div>
+        <label>用户名或邮箱:</label>
+        <input type="text" id="username" value="enen">
+    </div>
+    <div>
+        <label>密码:</label>
+        <input type="password" id="password" placeholder="输入密码">
+    </div>
+    <button onclick="debugJWT()">调试JWT</button>
+    <div id="result"></div>
+
+    <script>
+        async function debugJWT() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                document.getElementById('result').innerHTML = '<p>请填写用户名和密码</p>';
+                return;
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '开始调试JWT...';
+            
+            try {
+                // 1. 测试登录
+                resultDiv.innerHTML += '<br>1. 测试登录...';
+                const loginResponse = await fetch('http://localhost:9988/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                resultDiv.innerHTML += `<br>登录响应状态: ${loginResponse.status}`;
+                
+                if (!loginResponse.ok) {
+                    const errorText = await loginResponse.text();
+                    resultDiv.innerHTML += `<br>❌ 登录失败: ${errorText}`;
+                    return;
+                }
+                
+                const loginData = await loginResponse.json();
+                const token = loginData.token;
+                
+                resultDiv.innerHTML += `<br>✅ 登录成功<br>Token: ${token}<br>用户ID: ${loginData.user.id}`;
+                
+                // 2. 测试token解析
+                resultDiv.innerHTML += '<br><br>2. 测试token解析...';
+                try {
+                    const tokenParts = token.split('.');
+                    const header = JSON.parse(atob(tokenParts[0]));
+                    const payload = JSON.parse(atob(tokenParts[1]));
+                    
+                    resultDiv.innerHTML += `<br>Token Header: ${JSON.stringify(header)}`;
+                    resultDiv.innerHTML += `<br>Token Payload: ${JSON.stringify(payload)}`;
+                    resultDiv.innerHTML += `<br>Token过期时间: ${new Date(payload.exp * 1000)}`;
+                    resultDiv.innerHTML += `<br>当前时间: ${new Date()}`;
+                    resultDiv.innerHTML += `<br>Token是否过期: ${new Date() > new Date(payload.exp * 1000)}`;
+                } catch (e) {
+                    resultDiv.innerHTML += `<br>❌ Token解析失败: ${e.message}`;
+                }
+                
+                // 3. 测试历史对话API
+                resultDiv.innerHTML += '<br><br>3. 测试历史对话API...';
+                const historyResponse = await fetch('http://localhost:9988/api/chat-history', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                resultDiv.innerHTML += `<br>历史对话API状态码: ${historyResponse.status}`;
+                resultDiv.innerHTML += `<br>响应头: ${JSON.stringify(Object.fromEntries(historyResponse.headers.entries()))}`;
+                
+                if (historyResponse.ok) {
+                    const histories = await historyResponse.json();
+                    resultDiv.innerHTML += `<br>✅ 历史对话API成功<br>历史对话: ${JSON.stringify(histories, null, 2)}`;
+                } else {
+                    const errorText = await historyResponse.text();
+                    resultDiv.innerHTML += `<br>❌ 历史对话API失败<br>错误: ${errorText}`;
+                }
+                
+                // 4. 测试保存历史对话
+                resultDiv.innerHTML += '<br><br>4. 测试保存历史对话...';
+                const saveResponse = await fetch('http://localhost:9988/api/chat-history', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: '测试对话',
+                        messages: [
+                            { role: 'user', content: '你好' },
+                            { role: 'assistant', content: '你好！有什么可以帮助你的吗？' }
+                        ]
+                    })
+                });
+                
+                resultDiv.innerHTML += `<br>保存历史对话状态码: ${saveResponse.status}`;
+                
+                if (saveResponse.ok) {
+                    const saveData = await saveResponse.json();
+                    resultDiv.innerHTML += `<br>✅ 保存历史对话成功<br>保存的数据: ${JSON.stringify(saveData, null, 2)}`;
+                } else {
+                    const errorText = await saveResponse.text();
+                    resultDiv.innerHTML += `<br>❌ 保存历史对话失败<br>错误: ${errorText}`;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `<br>❌ 测试错误: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单保存测试</title>
+</head>
+<body>
+    <h1>简单保存测试</h1>
+    <p>测试保存历史对话API</p>
+    
+    <div>
+        <label>用户名:</label>
+        <input type="text" id="username" value="enen">
+    </div>
+    <div>
+        <label>密码:</label>
+        <input type="password" id="password" placeholder="输入密码">
+    </div>
+    <button onclick="testSave()">测试保存</button>
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+
+    <script>
+        function testSave() {
+            console.log('按钮被点击了');
+            document.getElementById('result').innerHTML = '按钮被点击了，开始测试...';
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                document.getElementById('result').innerHTML = '请填写用户名和密码';
+                return;
+            }
+            
+            document.getElementById('result').innerHTML = '正在测试...';
+            
+            // 简单的测试
+            fetch('http://localhost:9988/api/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    username: username,
+                    password: password
+                })
+            })
+            .then(response => {
+                document.getElementById('result').innerHTML = '登录响应状态: ' + response.status;
+                return response.json();
+            })
+            .then(data => {
+                document.getElementById('result').innerHTML += '<br>登录成功，Token: ' + data.token.substring(0, 20) + '...';
+                
+                // 测试保存
+                return fetch('http://localhost:9988/api/chat-history', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + data.token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: '测试对话',
+                        messages: [
+                            { role: 'user', content: '你好' },
+                            { role: 'assistant', content: '你好！' }
+                        ]
+                    })
+                });
+            })
+            .then(response => {
+                document.getElementById('result').innerHTML += '<br>保存响应状态: ' + response.status;
+                return response.text();
+            })
+            .then(text => {
+                document.getElementById('result').innerHTML += '<br>保存响应内容: ' + text;
+            })
+            .catch(error => {
+                document.getElementById('result').innerHTML += '<br>错误: ' + error.message;
+            });
+        }
+    </script>
+</body>
+</html>

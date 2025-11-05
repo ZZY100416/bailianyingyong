@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最终测试</title>
+</head>
+<body>
+    <h1>最终测试 - 验证JWT修复</h1>
+    <p>等待后端重启后，测试JWT验证是否修复</p>
+    
+    <div>
+        <label>用户名或邮箱:</label>
+        <input type="text" id="username" value="enen">
+    </div>
+    <div>
+        <label>密码:</label>
+        <input type="password" id="password" placeholder="输入密码">
+    </div>
+    <button onclick="finalTest()">最终测试</button>
+    <div id="result"></div>
+
+    <script>
+        async function finalTest() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                document.getElementById('result').innerHTML = '<p>请填写用户名和密码</p>';
+                return;
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '开始最终测试...';
+            
+            try {
+                // 1. 登录获取token
+                resultDiv.innerHTML += '<br>1. 登录获取token...';
+                const loginResponse = await fetch('http://localhost:9988/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                if (!loginResponse.ok) {
+                    const errorText = await loginResponse.text();
+                    resultDiv.innerHTML += `<br>❌ 登录失败: ${errorText}`;
+                    return;
+                }
+                
+                const loginData = await loginResponse.json();
+                const token = loginData.token;
+                
+                resultDiv.innerHTML += `<br>✅ 登录成功，Token: ${token.substring(0, 20)}...`;
+                
+                // 2. 测试获取历史对话
+                resultDiv.innerHTML += '<br><br>2. 测试获取历史对话...';
+                const getResponse = await fetch('http://localhost:9988/api/chat-history', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                resultDiv.innerHTML += `<br>获取历史对话状态码: ${getResponse.status}`;
+                
+                if (getResponse.ok) {
+                    const histories = await getResponse.json();
+                    resultDiv.innerHTML += `<br>✅ 获取历史对话成功！<br>历史对话数量: ${histories.length}`;
+                    if (histories.length > 0) {
+                        resultDiv.innerHTML += `<br>历史对话: ${JSON.stringify(histories, null, 2)}`;
+                    }
+                } else {
+                    const errorText = await getResponse.text();
+                    resultDiv.innerHTML += `<br>❌ 获取历史对话失败: ${errorText}`;
+                }
+                
+                // 3. 测试保存历史对话
+                resultDiv.innerHTML += '<br><br>3. 测试保存历史对话...';
+                const saveResponse = await fetch('http://localhost:9988/api/chat-history', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        title: '测试对话_' + new Date().getTime(),
+                        messages: [
+                            { role: 'user', content: '你好，这是一个测试对话' },
+                            { role: 'assistant', content: '你好！我是AI助手，很高兴为你服务！' }
+                        ]
+                    })
+                });
+                
+                resultDiv.innerHTML += `<br>保存历史对话状态码: ${saveResponse.status}`;
+                
+                if (saveResponse.ok) {
+                    const saveData = await saveResponse.json();
+                    resultDiv.innerHTML += `<br>✅ 保存历史对话成功！<br>保存的数据: ${JSON.stringify(saveData, null, 2)}`;
+                } else {
+                    const errorText = await saveResponse.text();
+                    resultDiv.innerHTML += `<br>❌ 保存历史对话失败: ${errorText}`;
+                }
+                
+                // 4. 再次测试获取历史对话
+                resultDiv.innerHTML += '<br><br>4. 再次测试获取历史对话...';
+                const getResponse2 = await fetch('http://localhost:9988/api/chat-history', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                resultDiv.innerHTML += `<br>再次获取历史对话状态码: ${getResponse2.status}`;
+                
+                if (getResponse2.ok) {
+                    const histories2 = await getResponse2.json();
+                    resultDiv.innerHTML += `<br>✅ 再次获取历史对话成功！<br>历史对话数量: ${histories2.length}`;
+                    if (histories2.length > 0) {
+                        resultDiv.innerHTML += `<br>最新历史对话: ${JSON.stringify(histories2[0], null, 2)}`;
+                    }
+                } else {
+                    const errorText = await getResponse2.text();
+                    resultDiv.innerHTML += `<br>❌ 再次获取历史对话失败: ${errorText}`;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `<br>❌ 测试错误: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

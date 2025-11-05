@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>保存历史对话调试</title>
+</head>
+<body>
+    <h1>保存历史对话调试</h1>
+    <p>专门调试保存历史对话API的400错误</p>
+    
+    <div>
+        <label>用户名或邮箱:</label>
+        <input type="text" id="username" value="enen">
+    </div>
+    <div>
+        <label>密码:</label>
+        <input type="password" id="password" placeholder="输入密码">
+    </div>
+    <button onclick="debugSave()">调试保存</button>
+    <div id="result"></div>
+
+    <script>
+        async function debugSave() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                document.getElementById('result').innerHTML = '<p>请填写用户名和密码</p>';
+                return;
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '开始调试保存历史对话...';
+            
+            try {
+                // 1. 登录获取token
+                resultDiv.innerHTML += '<br>1. 登录获取token...';
+                const loginResponse = await fetch('http://localhost:9988/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                if (!loginResponse.ok) {
+                    const errorText = await loginResponse.text();
+                    resultDiv.innerHTML += `<br>❌ 登录失败: ${errorText}`;
+                    return;
+                }
+                
+                const loginData = await loginResponse.json();
+                const token = loginData.token;
+                
+                resultDiv.innerHTML += `<br>✅ 登录成功，Token: ${token.substring(0, 20)}...`;
+                
+                // 2. 测试保存历史对话 - 使用简单数据
+                resultDiv.innerHTML += '<br><br>2. 测试保存历史对话（简单数据）...';
+                const simpleData = {
+                    title: "测试对话",
+                    messages: [
+                        { role: "user", content: "你好" },
+                        { role: "assistant", content: "你好！有什么可以帮助你的吗？" }
+                    ]
+                };
+                
+                resultDiv.innerHTML += `<br>发送数据: ${JSON.stringify(simpleData, null, 2)}`;
+                
+                const saveResponse1 = await fetch('http://localhost:9988/api/chat-history', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(simpleData)
+                });
+                
+                resultDiv.innerHTML += `<br>保存响应状态码: ${saveResponse1.status}`;
+                
+                if (saveResponse1.ok) {
+                    const saveData = await saveResponse1.json();
+                    resultDiv.innerHTML += `<br>✅ 保存成功: ${JSON.stringify(saveData, null, 2)}`;
+                } else {
+                    const errorText = await saveResponse1.text();
+                    resultDiv.innerHTML += `<br>❌ 保存失败: ${errorText}`;
+                }
+                
+                // 3. 测试保存历史对话 - 使用复杂数据
+                resultDiv.innerHTML += '<br><br>3. 测试保存历史对话（复杂数据）...';
+                const complexData = {
+                    title: "小红书文案创作对话",
+                    messages: [
+                        { role: "user", content: "帮我写一段小红书爆款文案，要求吸引眼球，容易传播" },
+                        { role: "assistant", content: "你好呀!作为专业的小红书高赞爆款文案专家,我擅长提取分析链接内容、高质量仿写、生成爆款文案以及文案润色优化。请提供需要处理的小红书链接或文案内容,我会为你: ✅ 精准提取原文核心信息 ✅ 创作符合小红书调性的高互动新内容 ✅ 规避敏感词+强化情绪钩子 ✅ 贴合最新平台热点和用户偏好 等你丢链接/文案过来,马上开工! 💡 (悄悄说:带"避坑""干货""亲测"的标题现在流量超好哦)" }
+                    ]
+                };
+                
+                resultDiv.innerHTML += `<br>发送数据: ${JSON.stringify(complexData, null, 2)}`;
+                
+                const saveResponse2 = await fetch('http://localhost:9988/api/chat-history', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(complexData)
+                });
+                
+                resultDiv.innerHTML += `<br>保存响应状态码: ${saveResponse2.status}`;
+                
+                if (saveResponse2.ok) {
+                    const saveData = await saveResponse2.json();
+                    resultDiv.innerHTML += `<br>✅ 保存成功: ${JSON.stringify(saveData, null, 2)}`;
+                } else {
+                    const errorText = await saveResponse2.text();
+                    resultDiv.innerHTML += `<br>❌ 保存失败: ${errorText}`;
+                }
+                
+                // 4. 再次获取历史对话
+                resultDiv.innerHTML += '<br><br>4. 再次获取历史对话...';
+                const getResponse = await fetch('http://localhost:9988/api/chat-history', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                resultDiv.innerHTML += `<br>获取历史对话状态码: ${getResponse.status}`;
+                
+                if (getResponse.ok) {
+                    const histories = await getResponse.json();
+                    resultDiv.innerHTML += `<br>✅ 获取历史对话成功！<br>历史对话数量: ${histories.length}`;
+                    if (histories.length > 0) {
+                        resultDiv.innerHTML += `<br>历史对话: ${JSON.stringify(histories, null, 2)}`;
+                    }
+                } else {
+                    const errorText = await getResponse.text();
+                    resultDiv.innerHTML += `<br>❌ 获取历史对话失败: ${errorText}`;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML += `<br>❌ 测试错误: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

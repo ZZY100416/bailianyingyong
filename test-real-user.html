@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>使用现有用户测试</title>
+</head>
+<body>
+    <h1>使用现有用户测试</h1>
+    <p>请使用你在应用中注册的用户名和密码进行测试</p>
+    
+    <div>
+        <label>用户名或邮箱:</label>
+        <input type="text" id="username" placeholder="输入你的用户名或邮箱">
+    </div>
+    <div>
+        <label>密码:</label>
+        <input type="password" id="password" placeholder="输入你的密码">
+    </div>
+    <button onclick="testWithRealUser()">使用真实用户测试</button>
+    <div id="result"></div>
+
+    <script>
+        let testToken = null;
+
+        async function testWithRealUser() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                document.getElementById('result').innerHTML = '<p>请填写用户名和密码</p>';
+                return;
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '使用真实用户测试登录...';
+            
+            try {
+                const response = await fetch('http://localhost:9988/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    testToken = data.token;
+                    resultDiv.innerHTML = `
+                        <p>✅ 登录成功</p>
+                        <p>Token: ${testToken ? '已获取' : '未获取'}</p>
+                        <p>用户ID: ${data.user.id}</p>
+                        <p>用户名: ${data.user.username}</p>
+                        <p>邮箱: ${data.user.email}</p>
+                        <button onclick="testHistoryWithRealToken()">测试历史对话API</button>
+                    `;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.innerHTML = `
+                        <p>❌ 登录失败</p>
+                        <p>状态码: ${response.status}</p>
+                        <p>错误: ${errorText}</p>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p>❌ 登录错误: ${error.message}</p>
+                `;
+            }
+        }
+
+        async function testHistoryWithRealToken() {
+            if (!testToken) {
+                document.getElementById('result').innerHTML = '<p>请先登录获取Token</p>';
+                return;
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '使用真实Token测试历史对话...';
+            
+            try {
+                const response = await fetch('http://localhost:9988/api/chat-history', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${testToken}`
+                    }
+                });
+                
+                resultDiv.innerHTML = `
+                    <p>历史对话API状态码: ${response.status}</p>
+                    <p>状态文本: ${response.statusText}</p>
+                `;
+                
+                if (response.ok) {
+                    const histories = await response.json();
+                    resultDiv.innerHTML += `<p>历史对话数量: ${histories.length}</p>`;
+                    resultDiv.innerHTML += `<p>历史对话: ${JSON.stringify(histories, null, 2)}</p>`;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.innerHTML += `<p>错误响应: ${errorText}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p>❌ 历史对话API错误: ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

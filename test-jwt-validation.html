@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JWT Token验证测试</title>
+</head>
+<body>
+    <h1>JWT Token验证测试</h1>
+    <p>这个测试会验证JWT token是否能正确验证</p>
+    
+    <div>
+        <label>用户名或邮箱:</label>
+        <input type="text" id="username" value="enen">
+    </div>
+    <div>
+        <label>密码:</label>
+        <input type="password" id="password" placeholder="输入密码">
+    </div>
+    <button onclick="testJWTValidation()">测试JWT验证</button>
+    <div id="result"></div>
+
+    <script>
+        async function testJWTValidation() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                document.getElementById('result').innerHTML = '<p>请填写用户名和密码</p>';
+                return;
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '测试JWT验证...';
+            
+            try {
+                // 1. 登录获取token
+                const loginResponse = await fetch('http://localhost:9988/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+                
+                if (!loginResponse.ok) {
+                    const errorText = await loginResponse.text();
+                    resultDiv.innerHTML = `
+                        <p>❌ 登录失败</p>
+                        <p>状态码: ${loginResponse.status}</p>
+                        <p>错误: ${errorText}</p>
+                    `;
+                    return;
+                }
+                
+                const loginData = await loginResponse.json();
+                const token = loginData.token;
+                
+                resultDiv.innerHTML = `
+                    <p>✅ 登录成功</p>
+                    <p>Token: ${token.substring(0, 20)}...</p>
+                    <p>用户ID: ${loginData.user.id}</p>
+                `;
+                
+                // 2. 测试历史对话API
+                const historyResponse = await fetch('http://localhost:9988/api/chat-history', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                resultDiv.innerHTML += `
+                    <p>历史对话API状态码: ${historyResponse.status}</p>
+                `;
+                
+                if (historyResponse.ok) {
+                    const histories = await historyResponse.json();
+                    resultDiv.innerHTML += `
+                        <p>✅ 历史对话API成功</p>
+                        <p>历史对话数量: ${histories.length}</p>
+                        <p>历史对话: ${JSON.stringify(histories, null, 2)}</p>
+                    `;
+                } else {
+                    const errorText = await historyResponse.text();
+                    resultDiv.innerHTML += `
+                        <p>❌ 历史对话API失败</p>
+                        <p>错误: ${errorText}</p>
+                    `;
+                }
+                
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p>❌ 测试错误: ${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

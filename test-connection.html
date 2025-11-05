@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后端连接测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+    </style>
+</head>
+<body>
+    <h1>后端连接测试</h1>
+    
+    <div class="test-section">
+        <h2>1. 测试百炼智能体健康状态</h2>
+        <button onclick="testBackendHealth()">测试后端健康状态</button>
+        <button onclick="testAgentInfo()">获取智能体信息</button>
+        <div id="healthResult" class="result"></div>
+        <div id="agentInfoResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. 测试百炼智能体流式API</h2>
+        <input type="text" id="testQuery" placeholder="输入测试查询" value="你好，请介绍一下你自己" style="width: 300px; padding: 8px; margin-right: 10px;">
+        <button onclick="testStreamAPI()">测试流式响应</button>
+        <div id="streamResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. 测试百炼智能体对话API</h2>
+        <input type="text" id="chatQuery" placeholder="输入对话查询" value="什么是人工智能？" style="width: 300px; padding: 8px; margin-right: 10px;">
+        <button onclick="testChatAPI()">测试智能体对话</button>
+        <div id="chatResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. 测试传统ChatModel API</h2>
+        <input type="text" id="chatModelQuery" placeholder="输入ChatModel查询" value="请解释一下机器学习的基本概念" style="width: 300px; padding: 8px; margin-right: 10px;">
+        <button onclick="testChatModelAPI()">测试ChatModel对话</button>
+        <div id="chatModelResult" class="result"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. 测试前端应用</h2>
+        <p>如果上面的测试都成功，您可以启动前端应用：</p>
+        <code>npm run dev</code>
+        <p>然后访问 <a href="http://localhost:5173" target="_blank">http://localhost:5173</a></p>
+    </div>
+
+    <script>
+        async function testBackendHealth() {
+            const resultDiv = document.getElementById('healthResult');
+            resultDiv.textContent = '正在测试...';
+            
+            try {
+                const response = await fetch('http://localhost:7765/bailian/agent/health');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.textContent = '✅ 百炼智能体后端运行正常！\n' + JSON.stringify(data, null, 2);
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = '❌ 后端响应错误！状态码: ' + response.status;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = '❌ 无法连接到百炼智能体后端！错误: ' + error.message;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testAgentInfo() {
+            const resultDiv = document.getElementById('agentInfoResult');
+            resultDiv.textContent = '正在获取智能体信息...';
+            
+            try {
+                const response = await fetch('http://localhost:7765/bailian/agent/info');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.textContent = '✅ 智能体信息获取成功！\n' + JSON.stringify(data, null, 2);
+                    resultDiv.className = 'result success';
+                } else {
+                    resultDiv.textContent = '❌ 获取智能体信息失败！状态码: ' + response.status;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.textContent = '❌ 无法获取智能体信息！错误: ' + error.message;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testStreamAPI() {
+            const resultDiv = document.getElementById('streamResult');
+            const query = document.getElementById('testQuery').value;
+            
+            resultDiv.textContent = '正在发送请求...';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch('http://localhost:7765/bailian/agent/stream', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const reader = response.body?.getReader();
+                if (!reader) {
+                    throw new Error('No response body');
+                }
+
+                const decoder = new TextDecoder();
+                let result = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    result += chunk;
+                    resultDiv.textContent = result;
+                }
+
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = '❌ 流式API测试失败！错误: ' + error.message;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testChatAPI() {
+            const resultDiv = document.getElementById('chatResult');
+            const query = document.getElementById('chatQuery').value;
+            
+            resultDiv.textContent = '正在发送百炼智能体请求...';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch('http://localhost:7765/bailian/agent/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.text();
+                resultDiv.textContent = '✅ 百炼智能体对话API测试成功！\n\n响应内容：\n' + result;
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = '❌ 百炼智能体对话API测试失败！错误: ' + error.message;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testChatModelAPI() {
+            const resultDiv = document.getElementById('chatModelResult');
+            const query = document.getElementById('chatModelQuery').value;
+            
+            resultDiv.textContent = '正在发送ChatModel请求...';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch('http://localhost:7765/bailian/agent/chat-model', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.text();
+                resultDiv.textContent = '✅ ChatModel对话API测试成功！\n\n响应内容：\n' + result;
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = '❌ ChatModel对话API测试失败！错误: ' + error.message;
+                resultDiv.className = 'result error';
+            }
+        }
+
+        async function testAgentAPI() {
+            const resultDiv = document.getElementById('agentResult');
+            const query = document.getElementById('agentQuery').value;
+            
+            resultDiv.textContent = '正在发送Agent请求...';
+            resultDiv.className = 'result';
+            
+            try {
+                const response = await fetch('http://localhost:7765/bailian/agent/agent-chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.text();
+                resultDiv.textContent = '✅ SAA Agent对话API测试成功！\n\n响应内容：\n' + result;
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.textContent = '❌ SAA Agent对话API测试失败！错误: ' + error.message;
+                resultDiv.className = 'result error';
+            }
+        }
+    </script>
+</body>
+</html>

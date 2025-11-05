@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API测试</title>
+</head>
+<body>
+    <h1>API连接测试</h1>
+    <button onclick="testAPI()">测试API连接</button>
+    <div id="result"></div>
+
+    <script>
+        async function testAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '测试中...';
+            
+            try {
+                // 测试后端是否运行
+                const response = await fetch('http://localhost:9988/api/chat-history', {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': 'Bearer test-token'
+                    }
+                });
+                
+                resultDiv.innerHTML = `
+                    <p>状态码: ${response.status}</p>
+                    <p>状态文本: ${response.statusText}</p>
+                    <p>后端是否运行: ${response.status !== 0 ? '是' : '否'}</p>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <p>错误: ${error.message}</p>
+                    <p>后端可能没有运行</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
