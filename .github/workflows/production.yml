@@ -1,0 +1,19 @@
+# 在仓库 Settings → Environments 中创建受保护环境
+# production.yml
+name: Production Deployment  
+on:
+  workflow_dispatch:  # 手动触发
+  push:
+    tags: 
+      - 'v*'
+
+jobs:
+  deployment:
+    runs-on: ubuntu-latest
+    environment: 
+      name: production
+      url: https://yourapp.com
+    
+    steps:
+      - name: Deploy to production
+        run: echo "Deploying..."
