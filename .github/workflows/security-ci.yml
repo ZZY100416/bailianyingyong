@@ -1,0 +1,23 @@
+# .github/workflows/security-ci.yml
+name: Security CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+# 最小权限配置
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+jobs:
+  security-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false  # 重要：不使用GITHUB_TOKEN进行后续操作
