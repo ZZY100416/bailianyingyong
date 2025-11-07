@@ -146,6 +146,76 @@ public class ChatHistoryController {
         }
         return user.getId();
     }
+         /**
+     * OpenRASP 专用测试端点 - SQL注入测试
+     */
+    @GetMapping("/test-rasp-sql")
+    public ResponseEntity<String> testRASPSQL(@RequestParam String input) {
+        // 模拟SQL注入漏洞场景
+        System.out.println("RASP SQL测试 - 输入: " + input);
+        
+        // 这里应该触发SQL注入检测
+        String simulatedQuery = "SELECT * FROM users WHERE name = '" + input + "'";
+        System.out.println("模拟SQL查询: " + simulatedQuery);
+        
+        return ResponseEntity.ok("SQL测试完成，输入: " + input);
+    }
+
+    /**
+     * OpenRASP 专用测试端点 - XSS测试
+     */
+    @GetMapping("/test-rasp-xss")  
+    public ResponseEntity<String> testRASPXSS(@RequestParam String input) {
+        // 模拟XSS漏洞 - 直接返回用户输入
+        System.out.println("RASP XSS测试 - 输入: " + input);
+        
+        // 这里应该触发XSS检测
+        String response = "<div>用户输入: " + input + "</div>";
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * OpenRASP 专用测试端点 - 命令执行测试
+     */
+    @GetMapping("/test-rasp-command")
+    public ResponseEntity<String> testRASPCommand(@RequestParam String input) {
+        // 模拟命令执行漏洞
+        System.out.println("RASP 命令测试 - 输入: " + input);
+        
+        try {
+            // 这里应该触发命令注入检测
+            // 使用安全的命令执行方式
+            String[] cmd = {"echo", "测试: " + input};
+            Process process = Runtime.getRuntime().exec(cmd);
+            process.waitFor();
+        } catch (Exception e) {
+            System.out.println("命令执行异常: " + e.getMessage());
+        }
+        
+        return ResponseEntity.ok("命令测试完成，输入: " + input);
+    }
+
+    /**
+     * OpenRASP 专用测试端点 - 文件读取测试
+     */
+    @GetMapping("/test-rasp-file")
+    public ResponseEntity<String> testRASPFile(@RequestParam String filename) {
+        // 模拟文件读取漏洞
+        System.out.println("RASP 文件测试 - 文件名: " + filename);
+        
+        try {
+            // 这里应该触发文件读取检测
+            java.nio.file.Path path = java.nio.file.Paths.get(filename);
+            if (java.nio.file.Files.exists(path)) {
+                String content = new String(java.nio.file.Files.readAllBytes(path));
+                return ResponseEntity.ok("文件内容: " + content.substring(0, Math.min(50, content.length())));
+            } else {
+                return ResponseEntity.ok("文件不存在: " + filename);
+            }
+        } catch (Exception e) {
+            return ResponseEntity.ok("文件读取异常: " + e.getMessage());
+        }
+    }
     
     // 内部类用于请求体
     public static class SaveChatHistoryRequest {
